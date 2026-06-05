@@ -11,3 +11,204 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User{
+  id              String    @id @default(uuid())
+  githubId        String    @unique
+  username        String
+  email           String? @unique
+  avatarUrl       String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  organizations   Organization[]
+  organizationMember  OrganizationMember[]
+  session         Session[]
+  githubAccount   GitHubAccount?
+  pipelineVersion PipelineVersion[]
+}
+
+model Organization{
+  id              String    @id @default(uuid())
+  ownerId         String
+  owner           User @relation(fields: [ownerId],references: [id])
+  name            String
+  slug            String  @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  members         OrganizationMember[]
+  project         Project[]
+}
+
+model Session{
+  id              String    @id @default(uuid())
+  userId          String
+  user            User @relation(fields: [userId], references: [id])
+  expiresAt       DateTime
+  creatdAt        DateTime  @default(now())
+}
+
+model GitHubAccount{
+  id              String    @id @default(uuid())
+  userId          String @unique
+  user            User  @relation(fields: [userId], references: [id])
+  githubId        String @unique
+  username        String
+  accessToken     String
+  refreshToken    String?
+  tokenExpiresAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model OrganizationMember{
+  id              String    @id @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  userId          String
+  user            User  @relation(fields: [userId], references: [id])
+  role            ORGANIZATIONROLE
+  createdAt       DateTime  @default(now())  
+
+  @@unique([organizationId, userId])
+}
+
+enum ORGANIZATIONROLE {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Project{
+  id              String    @id   @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  name            String
+  description     String?
+  githubRepoId    String?
+  githubRepoName  String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  pipelines       Pipeline[]
+}
+
+model Pipeline{
+  id              String    @id @default(uuid())
+  projectId       String
+  project         Project @relation(fields: [projectId], references: [id])
+  name            String
+  description     String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  versions        PipelineVersion[]
+  runs            PipelineRun[]
+}
+
+model PipelineVersion{
+  id              String    @id @default(uuid())
+  pipelineId      String
+  pipeline        Pipeline @relation(fields: [pipelineId], references: [id])
+  version         Int
+  nodesJson       Json
+  edgesJson       Json
+  createdById     String
+  createdBy       User @relation(fields: [createdById], references: [id])
+  runs            PipelineRun[]
+
+  @@unique([pipelineId, version])
+}
+
+model PipelineRun{
+  id              String    @id @default(uuid())
+  pipelineId      String
+  pipeline        Pipeline  @relation(fields: [pipelineId], references: [id])
+  versionId       String
+  version         PipelineVersion @relation(fields: [versionId], references: [id])
+  taskRun         TaskRun[]
+  status          PipelineStatus
+  triggerType     TriggerType
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+enum PipelineStatus{
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum TriggerType{
+  MANUAL
+  PUSH
+  PULL_REQUEST
+  TAG
+  SCHEDULE
+}
+
+model TaskRun{
+  id              String    @id   @default(uuid())
+  pipelineRunId   String
+  pipelineRun     PipelineRun @relation(fields: [pipelineRunId], references: [id])
+  nodeId          String
+  status          TaskStatus
+  containerId     String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime @default(now())
+  attempts        TaskAttempt[]
+  logs            Log[]
+  artifacts       Artifact[]
+}
+
+enum TaskStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+model TaskAttempt {
+  id            String @id @default(uuid())
+
+  taskRunId     String
+  taskRun       TaskRun @relation(fields: [taskRunId], references: [id])
+
+  attemptNumber Int
+
+  status        TaskStatus
+
+  startedAt     DateTime?
+  finishedAt    DateTime?
+
+  createdAt     DateTime @default(now())
+}
+
+model Log {
+  id            String @id @default(uuid())
+
+  taskRunId     String
+  taskRun       TaskRun @relation(fields: [taskRunId], references: [id])
+
+  message       String
+
+  timestamp     DateTime @default(now())
+}
+
+model Artifact {
+  id            String @id @default(uuid())
+
+  taskRunId     String
+  taskRun       TaskRun @relation(fields: [taskRunId], references: [id])
+
+  path          String
+  size          BigInt
+
+  createdAt     DateTime @default(now())
+}

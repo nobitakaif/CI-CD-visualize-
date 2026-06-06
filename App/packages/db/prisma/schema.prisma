@@ -18,26 +18,27 @@ model User{
   username        String
   email           String? @unique
   avatarUrl       String?
-
+  pipelineTrigger PipelineRun[] @relation("triggered")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  organizations   Organization[]
+  ownedOrganizations   Organization[] @relation("OrganizationOwner")
   organizationMember  OrganizationMember[]
-  session         Session[]
+  sessions         Session[]
   githubAccount   GitHubAccount?
   pipelineVersion PipelineVersion[]
+  
 }
 
 model Organization{
   id              String    @id @default(uuid())
   ownerId         String
-  owner           User @relation(fields: [ownerId],references: [id])
+  owner           User @relation("OrganizationOwner",fields: [ownerId],references: [id])
   name            String
   slug            String  @unique
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   members         OrganizationMember[]
-  project         Project[]
+  projects         Project[]
 }
 
 model Session{
@@ -45,12 +46,13 @@ model Session{
   userId          String
   user            User @relation(fields: [userId], references: [id])
   expiresAt       DateTime
-  creatdAt        DateTime  @default(now())
+  createdAt        DateTime  @default(now())
 }
 
 model GitHubAccount{
   id              String    @id @default(uuid())
   userId          String @unique
+  installationId  String?
   user            User  @relation(fields: [userId], references: [id])
   githubId        String @unique
   username        String
@@ -66,15 +68,16 @@ model OrganizationMember{
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id])
   userId          String
-  user            User  @relation(fields: [userId], references: [id])
+  user            User @relation(fields: [userId], references: [id])
   role            ORGANIZATIONROLE
   createdAt       DateTime  @default(now())  
 
   @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
 }
 
 enum ORGANIZATIONROLE {
-  OWNER
   ADMIN
   MEMBER
   VIEWER
@@ -87,10 +90,14 @@ model Project{
   name            String
   description     String?
   githubRepoId    String?
+  defaultBranch   String?
   githubRepoName  String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   pipelines       Pipeline[]
+  @@index([organizationId])
+
+  @@unique([organizationId, name])
 }
 
 model Pipeline{
@@ -104,6 +111,10 @@ model Pipeline{
   updatedAt       DateTime  @updatedAt
   versions        PipelineVersion[]
   runs            PipelineRun[]
+  branchPattern   String?
+
+  @@index([projectId])
+  @@unique([projectId, name])
 }
 
 model PipelineVersion{
@@ -116,7 +127,8 @@ model PipelineVersion{
   createdById     String
   createdBy       User @relation(fields: [createdById], references: [id])
   runs            PipelineRun[]
-
+  createdAt       DateTime @default(now())
+  
   @@unique([pipelineId, version])
 }
 
@@ -126,13 +138,19 @@ model PipelineRun{
   pipeline        Pipeline  @relation(fields: [pipelineId], references: [id])
   versionId       String
   version         PipelineVersion @relation(fields: [versionId], references: [id])
-  taskRun         TaskRun[]
+  taskRuns        TaskRun[]
   status          PipelineStatus
+  triggeredById   String 
+  triggeredBy     User @relation("triggered", fields: [triggeredById], references: [id])
   triggerType     TriggerType
   startedAt       DateTime?
   finishedAt      DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([pipelineId])
+  @@index([versionId])
+  @@index([triggeredById])
 }
 
 enum PipelineStatus{
@@ -153,6 +171,7 @@ enum TriggerType{
 
 model TaskRun{
   id              String    @id   @default(uuid())
+  nodeName            String
   pipelineRunId   String
   pipelineRun     PipelineRun @relation(fields: [pipelineRunId], references: [id])
   nodeId          String
@@ -164,6 +183,7 @@ model TaskRun{
   attempts        TaskAttempt[]
   logs            Log[]
   artifacts       Artifact[]
+  @@index([pipelineRunId])
 }
 
 enum TaskStatus {
@@ -199,6 +219,7 @@ model Log {
   message       String
 
   timestamp     DateTime @default(now())
+  @@index([taskRunId])
 }
 
 model Artifact {
@@ -211,4 +232,6 @@ model Artifact {
   size          BigInt
 
   createdAt     DateTime @default(now())
+
+  @@index([taskRunId])
 }

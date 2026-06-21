@@ -1,3 +1,4 @@
+import { prisma } from "@repo/db/client"
 
 export abstract class AuthService{
     static async loginWithGithub({ code }: {code : string}){
@@ -43,10 +44,35 @@ export abstract class AuthService{
         const emailRes = await userEmail.json()
         console.log("email res",emailRes[0].email)
 
-        
-        
-        return {
-            data : userData
+        try{
+            const user = await prisma.user.upsert({
+                where : {
+                    githubId : userDataRes.id.toString()
+                },
+                update : {
+                    username: userDataRes.login,
+                    email: emailRes[0].email ?? null,
+                    avatarUrl: userDataRes.avatar_url,
+                },
+                create:{
+                    username : userDataRes.login,
+                    email : emailRes[0].email,
+                    githubId : userDataRes.id.toString(),
+                    avatarUrl : userDataRes.avatar_url,
+
+                }
+            })
+            
+            return {
+                data : userDataRes,
+                success : true,
+                userId : user.id
+            }
+        }catch(e){
+            return {
+                success : false,
+                error : e
+            }
         }
     }
 }

@@ -45,28 +45,46 @@ export abstract class AuthService{
         console.log("email res",emailRes[0].email)
 
         try{
-            const user = await prisma.user.upsert({
-                where : {
-                    githubId : userDataRes.id.toString()
-                },
-                update : {
-                    username: userDataRes.login,
-                    email: emailRes[0].email ?? null,
-                    avatarUrl: userDataRes.avatar_url,
-                },
-                create:{
-                    username : userDataRes.login,
-                    email : emailRes[0].email,
-                    githubId : userDataRes.id.toString(),
-                    avatarUrl : userDataRes.avatar_url,
+            
 
+            const user = await prisma.$transaction(async (txn)=>{
+                const userId = await txn.user.upsert({
+                    where : {
+                        githubId : userDataRes.id.toString()
+                    },
+                    update : {
+                        username: userDataRes.login,
+                        email: emailRes[0].email ?? null,
+                        avatarUrl: userDataRes.avatar_url,
+                    },
+                    create:{
+                        username : userDataRes.login,
+                        email : emailRes[0].email,
+                        githubId : userDataRes.id.toString(),
+                        avatarUrl : userDataRes.avatar_url,
+                    }
+                })
+
+                // setting up date with next 30 days
+                const expiresDate = new Date()
+                expiresDate.setDate(expiresDate.getDate() + 30)
+
+                const session = await txn.session.create({
+                    data : {
+                        userId : userId.id,
+                        // Fix this 
+                        expiresAt : expiresDate
+                    }
+                })
+                return {
+                    userId,
                 }
             })
             
             return {
                 data : userDataRes,
                 success : true,
-                userId : user.id
+                userId : user.userId.id
             }
         }catch(e){
             return {

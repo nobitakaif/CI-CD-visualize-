@@ -5,14 +5,19 @@ import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
-import LandingPage from "@/components/landingPage";
 
 export default function Home() {
   return (
     <>
-      <div>
-        <LandingPage/>
-      </div>
+      <Navbar />
+      <main>
+        <Hero />
+        <Stats />
+        <Features />
+        <HowItWorks />
+        <CTA />
+      </main>
+      <Footer />
     </>
   );
 }

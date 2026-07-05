@@ -1,8 +1,11 @@
 "use client";
 import Link from "next/link";
 import PipelineCanvas from "./PipelineCanvas";
+import { useState } from "react";
+import BuildOption from "./buildOption";
 
 export default function Hero() {
+  const [isOpen, setIsOpen] = useState(true)
   return (
     <section
       style={{
@@ -41,7 +44,7 @@ export default function Hero() {
           pointerEvents: "none",
         }}
       />
-
+  
       {/* Badge */}
       <div
         className="animate-fade-up-1"
@@ -59,6 +62,7 @@ export default function Hero() {
           color: "#93C5FD",
         }}
       >
+        
         <span
           className="animate-pulse-dot"
           style={{
@@ -143,6 +147,7 @@ export default function Hero() {
           </svg>
           Start building free
         </Link>
+        
         <Link
           href="#how-it-works"
           style={{
